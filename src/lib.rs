@@ -1,11 +1,10 @@
-extern crate js_sys;
 extern crate fixedbitset;
+extern crate js_sys;
 
 mod utils;
 
 use fixedbitset::FixedBitSet;
 use wasm_bindgen::prelude::*;
-
 
 #[wasm_bindgen]
 #[repr(u8)] // Represent each cell as a single byte
@@ -23,6 +22,18 @@ pub struct Universe {
 }
 
 impl Universe {
+    /// Get the dead and alive values of the entire universe
+    pub fn get_cells(&self) -> &FixedBitSet {
+        &self.cells
+    }
+    /// Set cells to be alive in an universe by passing the row and column
+    /// of each cell as an array
+    pub fn set_cells(&mut self, cells: &[(u32, u32)]) {
+        for (row, col) in cells.iter().cloned() {
+            let idx = self.get_index(row, col);
+            self.cells.set(idx, true);
+        }
+    }
     /// Gets index of current cell
     fn get_index(&self, row: u32, column: u32) -> usize {
         (row * self.width + column) as usize
@@ -52,11 +63,15 @@ impl Universe {
         let width = 64;
         let height = 64;
         // Randomly generate initial cells
-        let size = (width*height) as usize;
+        let size = (width * height) as usize;
         // FixedBitSet can save binary data(fixed bit) per cell.
         let mut cells = FixedBitSet::with_capacity(size);
         for i in 0..size {
-            cells.set(i, js_sys::Math::random() < 0.5);
+            if i % 2 == 0 || i % 7 == 0 {
+                cells.set(i, true);
+            } else {
+                cells.set(i, false);
+            }
         }
         Universe {
             width,
@@ -64,7 +79,29 @@ impl Universe {
             cells,
         }
     }
-    // Renderer
+    /// Set the width of the universe
+    ///
+    /// Resets all cells to the dead state
+    pub fn set_width(&mut self, width: u32) {
+        self.width = width;
+        let mut cells = self.cells.clone();
+        for idx in 0..width * self.height {
+            cells.set(idx as usize, false);
+        }
+        self.cells = cells;
+    }
+    /// Set the height of the universe
+    ///
+    /// Resets all cells to the dead state
+    pub fn set_height(&mut self, height: u32) {
+        self.height = height;
+        let mut cells = self.cells.clone();
+        for idx in 0..height * self.width {
+            cells.set(idx as usize, false);
+        }
+        self.cells = cells;
+    }
+    /// Convert struct to string to render in Javascript
     pub fn render(&self) -> String {
         self.to_string()
     }
@@ -78,22 +115,25 @@ impl Universe {
                 let cell = self.cells[idx];
                 let live_neighbors = self.live_neighbor_count(row, col);
 
-                next.set(idx, match(cell, live_neighbors){
-                    // Rule 1. Any live cell with fewer than two live neighbors
-                    // dies, as if caused by underpopulation
-                    (true, x) if x < 2 => false,
-                    // Rule 2. Any live cell with two or three living neighbors
-                    // lives on to next generation
-                    (true, 2) | (true, 3) => true,
-                    // Rule 3, Any live cell with more than three live neighbors,
-                    // dies, as if by overpopulation
-                    (true, x) if x > 3 => false,
-                    // Rule 4, Any dead cell with exactly three live neighbors
-                    // revives, as if by reproduction
-                    (false, 3) => true,
-                    // All other cells remain in the same state.
-                    (otherwise, _) => otherwise,
-                });
+                next.set(
+                    idx,
+                    match (cell, live_neighbors) {
+                        // Rule 1. Any live cell with fewer than two live neighbors
+                        // dies, as if caused by underpopulation
+                        (true, x) if x < 2 => false,
+                        // Rule 2. Any live cell with two or three living neighbors
+                        // lives on to next generation
+                        (true, 2) | (true, 3) => true,
+                        // Rule 3, Any live cell with more than three live neighbors,
+                        // dies, as if by overpopulation
+                        (true, x) if x > 3 => false,
+                        // Rule 4, Any dead cell with exactly three live neighbors
+                        // revives, as if by reproduction
+                        (false, 3) => true,
+                        // All other cells remain in the same state.
+                        (otherwise, _) => otherwise,
+                    },
+                );
             }
         }
         // Renew by vector
@@ -116,7 +156,7 @@ impl fmt::Display for Universe {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         // This will create 2d vector that contains 1d vector slice
         for line in self.cells.as_slice().chunks(self.width as usize) {
-        for &cell in line {
+            for &cell in line {
                 let symbol = if cell == 0 { '◻' } else { '◼' };
                 write!(f, "{}", symbol)?;
             }
