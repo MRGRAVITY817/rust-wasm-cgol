@@ -66,13 +66,13 @@ impl Universe {
 
 #[wasm_bindgen]
 impl Universe {
-    // Constructor: Initialize the field
+    /// Constructor
+    ///
+    /// Initialize the field
     pub fn new() -> Universe {
         let width = 64;
         let height = 64;
-        // Randomly generate initial cells
         let size = (width * height) as usize;
-        // FixedBitSet can save binary data(fixed bit) per cell.
         let mut cells = FixedBitSet::with_capacity(size);
         for i in 0..size {
             if i % 2 == 0 || i % 7 == 0 {
@@ -113,8 +113,22 @@ impl Universe {
     pub fn render(&self) -> String {
         self.to_string()
     }
-    // Tick function that determines the next tick (judging live/death of the
-    // given cell by the rule from "game of life")
+    /// Tick function that determines the next tick (judging live/death of the
+    /// given cell by the rule from "game of life")
+    ///
+    /// Rule 1. Any live cell with fewer than two live neighbors
+    /// dies, as if caused by underpopulation
+    ///
+    /// Rule 2. Any live cell with two or three living neighbors
+    /// lives on to next generation
+    ///
+    /// Rule 3, Any live cell with more than three live neighbors,
+    /// dies, as if by overpopulation
+    ///
+    /// Rule 4, Any dead cell with exactly three live neighbors
+    /// revives, as if by reproduction
+    ///
+    /// All other cells remain in the same state.
     pub fn tick(&mut self) {
         let mut next = self.cells.clone();
         for row in 0..self.height {
@@ -134,19 +148,10 @@ impl Universe {
                 next.set(
                     idx,
                     match (cell, live_neighbors) {
-                        // Rule 1. Any live cell with fewer than two live neighbors
-                        // dies, as if caused by underpopulation
                         (true, x) if x < 2 => false,
-                        // Rule 2. Any live cell with two or three living neighbors
-                        // lives on to next generation
                         (true, 2) | (true, 3) => true,
-                        // Rule 3, Any live cell with more than three live neighbors,
-                        // dies, as if by overpopulation
                         (true, x) if x > 3 => false,
-                        // Rule 4, Any dead cell with exactly three live neighbors
-                        // revives, as if by reproduction
                         (false, 3) => true,
-                        // All other cells remain in the same state.
                         (otherwise, _) => otherwise,
                     },
                 );
@@ -164,6 +169,15 @@ impl Universe {
     }
     pub fn cells(&self) -> *const u32 {
         self.cells.as_slice().as_ptr()
+    }
+    /// Toggle cell state
+    ///
+    /// Alive cell -> Dead cell
+    ///
+    /// Dead cell -> Alive cell
+    pub fn toggle_cell(&mut self, row: u32, column: u32) {
+        let idx = self.get_index(row, column);
+        self.cells.set(idx, !self.cells[idx]);
     }
 }
 
