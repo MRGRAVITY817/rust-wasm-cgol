@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>Hello wasm-pack!</title>
+    <style>
+      body {
+        position: absolute;
+        top: 100px;
+        left: 200px;
+        width: 200px;
+        height: 200px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+      }
+      button {
+        padding: 4px 10px 4px 10px;
+        background: blue;
+        color: white;
+        font-weight: 600;
+        border-radius: 3px;
+        text-align: center;
+        margin-top: 100px;
+        margin-bottom: 10px;
+      }
+      #fps {
+        white-space: pre;
+        font-family: monospace;
+      }
+    </style>
+  </head>
+  <body>
+    <button id="play-pause"></button>
+    <div id="fps"></div>
+    <canvas id="game-of-life-canvas"></canvas>
+    <script src="./bootstrap.js"></script>
+  </body>
+</html>
