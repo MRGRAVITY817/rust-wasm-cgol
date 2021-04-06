@@ -1,10 +1,18 @@
 extern crate fixedbitset;
 extern crate js_sys;
+extern crate web_sys;
 
 mod utils;
 
 use fixedbitset::FixedBitSet;
 use wasm_bindgen::prelude::*;
+
+// web-sys derives a rust macro to javascript method
+macro_rules! log {
+    ( $( $t:tt )* ) => {
+        web_sys::console::log_1(&format!( $( $t )* ).into());
+    };
+}
 
 #[wasm_bindgen]
 #[repr(u8)] // Represent each cell as a single byte
@@ -115,6 +123,14 @@ impl Universe {
                 let cell = self.cells[idx];
                 let live_neighbors = self.live_neighbor_count(row, col);
 
+                log!(
+                    "cell [{}, {}] is initially {:?} and has {} live neighbors",
+                    row,
+                    col,
+                    cell,
+                    live_neighbors
+                );
+
                 next.set(
                     idx,
                     match (cell, live_neighbors) {
@@ -134,6 +150,7 @@ impl Universe {
                         (otherwise, _) => otherwise,
                     },
                 );
+                log!("     it becomes {:?}", next[idx]);
             }
         }
         // Renew by vector
