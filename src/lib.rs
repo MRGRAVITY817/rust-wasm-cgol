@@ -6,12 +6,38 @@ mod utils;
 
 use fixedbitset::FixedBitSet;
 use wasm_bindgen::prelude::*;
+use web_sys::console;
 
 // web-sys derives a rust macro to javascript method
 macro_rules! log {
     ( $( $t:tt )* ) => {
         web_sys::console::log_1(&format!( $( $t )* ).into());
     };
+}
+
+// Since name is string ref, we should give a lifetime
+// when defined with struct
+pub struct Timer<'a> {
+    name: &'a str,
+}
+
+// We will init Timer for every call, so we will wrap it in RAII
+// - Resource Acquisition Is Initialization - which means we will
+// make constructor and destructor for time start and time end
+
+// new() executes constructor
+impl<'a> Timer<'a> {
+    pub fn new(name: &'a str) -> Timer<'a> {
+        console::time_with_label(name);
+        Timer { name }
+    }
+}
+
+/// drop() executes destructor
+impl<'a> Drop for Timer<'a> {
+    fn drop(&mut self) {
+        console::time_end_with_label(self.name);
+    }
 }
 
 #[wasm_bindgen]
@@ -49,17 +75,47 @@ impl Universe {
     /// Counts the number of neighbors
     fn live_neighbor_count(&self, row: u32, column: u32) -> u8 {
         let mut count = 0;
-        for delta_row in [self.height - 1, 0, 1].iter().cloned() {
-            for delta_col in [self.width - 1, 0, 1].iter().cloned() {
-                if delta_row == 0 && delta_col == 0 {
-                    continue;
-                }
-                let neighbor_row = (row + delta_row) % self.height;
-                let neighbor_col = (column + delta_col) % self.width;
-                let idx = self.get_index(neighbor_row, neighbor_col);
-                count += self.cells[idx] as u8;
-            }
-        }
+
+        let north = if row == 0 { self.height - 1 } else { row - 1 };
+
+        let south = if row == self.height - 1 { 0 } else { row + 1 };
+
+        let west = if column == 0 {
+            self.width - 1
+        } else {
+            column - 1
+        };
+
+        let east = if column == self.width - 1 {
+            0
+        } else {
+            column + 1
+        };
+
+        let nw = self.get_index(north, west);
+        count += self.cells[nw] as u8;
+
+        let n = self.get_index(north, column);
+        count += self.cells[n] as u8;
+
+        let ne = self.get_index(north, east);
+        count += self.cells[ne] as u8;
+
+        let w = self.get_index(row, west);
+        count += self.cells[w] as u8;
+
+        let e = self.get_index(row, east);
+        count += self.cells[e] as u8;
+
+        let sw = self.get_index(south, west);
+        count += self.cells[sw] as u8;
+
+        let s = self.get_index(south, column);
+        count += self.cells[s] as u8;
+
+        let se = self.get_index(south, east);
+        count += self.cells[se] as u8;
+
         count
     }
 }
@@ -70,8 +126,8 @@ impl Universe {
     ///
     /// Initialize the field
     pub fn new() -> Universe {
-        let width = 64;
-        let height = 64;
+        let width = 128;
+        let height = 128;
         let size = (width * height) as usize;
         let mut cells = FixedBitSet::with_capacity(size);
         for i in 0..size {
@@ -130,35 +186,41 @@ impl Universe {
     ///
     /// All other cells remain in the same state.
     pub fn tick(&mut self) {
-        let mut next = self.cells.clone();
-        for row in 0..self.height {
-            for col in 0..self.width {
-                let idx = self.get_index(row, col);
-                let cell = self.cells[idx];
-                let live_neighbors = self.live_neighbor_count(row, col);
-
-                log!(
-                    "cell [{}, {}] is initially {:?} and has {} live neighbors",
-                    row,
-                    col,
-                    cell,
-                    live_neighbors
-                );
-
-                next.set(
-                    idx,
-                    match (cell, live_neighbors) {
-                        (true, x) if x < 2 => false,
-                        (true, 2) | (true, 3) => true,
-                        (true, x) if x > 3 => false,
-                        (false, 3) => true,
-                        (otherwise, _) => otherwise,
-                    },
-                );
-                log!("     it becomes {:?}", next[idx]);
+        let _timer = Timer::new("Universe::tick");
+        let mut next = {
+            let _timer = Timer::new("Allocate next cells");
+            self.cells.clone()
+        };
+        {
+            let _timer = Timer::new("New Generation");
+            for row in 0..self.height {
+                for col in 0..self.width {
+                    let idx = self.get_index(row, col);
+                    let cell = self.cells[idx];
+                    let live_neighbors = self.live_neighbor_count(row, col);
+                    // log!(
+                    //     "Cell [{}, {}] is initially {:?} and has {} live neighbors",
+                    //     row,
+                    //     col,
+                    //     cell,
+                    //     live_neighbors
+                    // );
+                    next.set(
+                        idx,
+                        match (cell, live_neighbors) {
+                            (true, x) if x < 2 => false,
+                            (true, 2) | (true, 3) => true,
+                            (true, x) if x > 3 => false,
+                            (false, 3) => true,
+                            (otherwise, _) => otherwise,
+                        },
+                    );
+                    // log!("     it becomes {:?}", next[idx]);
+                }
             }
         }
         // Renew by vector
+        let _timer = Timer::new("Free old cells");
         self.cells = next;
     }
     pub fn width(&self) -> u32 {

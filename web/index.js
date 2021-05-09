@@ -2,7 +2,7 @@ import { memory } from "wasm-game-of-life/wasm_game_of_life_bg";
 
 import { Universe, Cell } from "wasm-game-of-life";
 
-const CELL_SIZE = 5; // px
+const CELL_SIZE = 4; // px
 const GRID_COLOR = "#CCCCCC";
 const DEAD_COLOR = "#FFFFFF";
 const ALIVE_COLOR = "#000000";
@@ -31,11 +31,26 @@ const drawCells = () => {
   // This is updated!
   const cells = new Uint8Array(memory.buffer, cellsPtr, (width * height) / 8);
   ctx.beginPath();
+
+  // For alive cells
+  ctx.fillStyle = ALIVE_COLOR;
   for (let row = 0; row < height; row++) {
     for (let col = 0; col < width; col++) {
       const idx = getIndex(row, col);
-      // This is updated!
-      ctx.fillStyle = bitIsSet(idx, cells) ? ALIVE_COLOR : DEAD_COLOR;
+      if (!cells[idx]) {
+        continue;
+      }
+      ctx.fillRect(col * (CELL_SIZE + 1) + 1, row * (CELL_SIZE + 1) + 1, CELL_SIZE, CELL_SIZE);
+    }
+  }
+  // For dead cells
+  ctx.fillStyle = DEAD_COLOR;
+  for (let row = 0; row < height; row++) {
+    for (let col = 0; col < width; col++) {
+      const idx = getIndex(row, col);
+      if (cells[idx]) {
+        continue;
+      }
       ctx.fillRect(col * (CELL_SIZE + 1) + 1, row * (CELL_SIZE + 1) + 1, CELL_SIZE, CELL_SIZE);
     }
   }
@@ -110,7 +125,9 @@ const renderLoop = () => {
 
   fps.render();
 
-  universe.tick();
+  for (let i = 0; i < 9; i++) {
+    universe.tick();
+  }
   drawGrid();
   drawCells();
 

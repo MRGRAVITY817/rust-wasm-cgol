@@ -5,11 +5,7 @@
     <title>Hello wasm-pack!</title>
     <style>
       body {
-        position: absolute;
-        top: 100px;
-        left: 200px;
-        width: 200px;
-        height: 200px;
+        position: relative;
         display: flex;
         flex-direction: column;
         align-items: center;
@@ -22,12 +18,17 @@
         font-weight: 600;
         border-radius: 3px;
         text-align: center;
-        margin-top: 100px;
+        margin-top: 50px;
         margin-bottom: 10px;
       }
       #fps {
+        margin-top: 20px;
         white-space: pre;
-        font-family: monospace;
+        font-family: sans-serif;
+        color: black;
+      }
+      #game-of-life-canvas {
+        margin-top: 20px;
       }
     </style>
   </head>
